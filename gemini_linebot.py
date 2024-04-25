@@ -7,24 +7,21 @@ import google.generativeai as genai
 import os
 from pyngrok import ngrok, conf
 from PIL import Image
-from dotenv import load_dotenv
 from io import BytesIO
+import json
+data = json.load(open("config.json", encoding="utf-8"))
 
-dotenv_path = '.env'
-load_dotenv(dotenv_path)
-
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-ACCESS_TOKEN = os.getenv('LINE_ACCESS_TOKEN')
-CHANNEL_SECRET = os.getenv('LINE_CHANNEL_SECRET')
-NGROK_AUTHTOKEN = os.getenv('NGROK_AUTHTOKEN')
-
+GEMINI_API_KEY = data["GEMINI_API_KEY"]
+ACCESS_TOKEN = data["ACCESS_TOKEN"]
+CHANNEL_SECRET = data["CHANNEL_SECRET"]
+NGROK_AUTHTOKEN = data["NGROK_AUTHTOKEN"]
 # ngrok
 conf.get_default().auth_token = NGROK_AUTHTOKEN
 ngrok_tunnel = ngrok.connect(8888)
 print("Ngrok Tunnel URL:", ngrok_tunnel.public_url)
 
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-1.0-pro')
 modelv = genai.GenerativeModel('gemini-pro-vision')
 class GeminiLineBot(LineBot):
     def handle_text_message(self, event):
