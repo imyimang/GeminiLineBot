@@ -6,9 +6,8 @@ import google.generativeai as genai
 from pyngrok import ngrok, conf
 from PIL import Image
 from io import BytesIO
-from setting import history
-from setting import generation_config
-from setting import safety_settings
+from setting import history,generation_config,safety_settings
+from spider import islink,gettitle
 import json
 
 data = json.load(open("config.json", encoding="utf-8"))
@@ -37,6 +36,42 @@ class GeminiLineBot(LineBot):
     def handle_text_message(self, event):
         user_id = event.source.user_id
         print(user_id)
+
+        if event.message.text.lower() == "reset": #如果訊息內容="reset"
+            if user_id in log:
+                del log[user_id] #清空短期記憶
+                self.line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="已清空短期記憶"),
+                )        
+                
+            else:
+                self.line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="尚無儲存的短期記憶"),
+                )      
+            return
+        
+        links = islink(event.message.text)
+        #如果訊息內容有連結
+        if links:
+            links = '\n'.join(links)
+            title = gettitle(links) #取得連結中的title
+            if title:
+                word = event.message.text.replace(links, f"(一個網址，網址標題是:'{title}')")
+                reply_text =f"使用者說:'{word}'"  #將連結網站的title放入短期記憶
+            else:
+                word = event.message.text.replace(links, "(一個網址，網址無法辨識)")
+                reply_text = f"使用者說:'{word}'"
+
+            update_message_history(user_id, reply_text)
+            response = model.start_chat(history=history).send_message(get_formatted_message_history(user_id))
+            self.line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=response.text),
+        )
+            return
+
         user_message = f"使用者:{event.message.text}"
         update_message_history(user_id, user_message)
         response = model.start_chat(history=history).send_message(get_formatted_message_history(user_id))
@@ -63,6 +98,7 @@ class GeminiLineBot(LineBot):
             event.reply_token,
             TextSendMessage(text=reply_text),
         )
+
 
 def update_message_history(channel_id, text): 
     if channel_id in log:  

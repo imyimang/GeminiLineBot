@@ -3,4 +3,6 @@ line-bot-sdk
 google-generativeai
 pyngrok
 Pillow
-json
+python-dotenv
+beautifulsoup4
+requests
