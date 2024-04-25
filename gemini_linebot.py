@@ -1,33 +1,47 @@
-# gemini_linebot.py
 from line_bot_base import LineBot
 from linebot.models import (
    TextSendMessage, ImageMessage,
 )
 import google.generativeai as genai
-import os
 from pyngrok import ngrok, conf
 from PIL import Image
 from io import BytesIO
+from setting import history
+from setting import generation_config
+from setting import safety_settings
 import json
+
 data = json.load(open("config.json", encoding="utf-8"))
+log = {} 
 
 GEMINI_API_KEY = data["GEMINI_API_KEY"]
 ACCESS_TOKEN = data["ACCESS_TOKEN"]
 CHANNEL_SECRET = data["CHANNEL_SECRET"]
 NGROK_AUTHTOKEN = data["NGROK_AUTHTOKEN"]
+
 # ngrok
 conf.get_default().auth_token = NGROK_AUTHTOKEN
 ngrok_tunnel = ngrok.connect(8888)
 print("Ngrok Tunnel URL:", ngrok_tunnel.public_url)
 
+
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.0-pro')
-modelv = genai.GenerativeModel('gemini-pro-vision')
+
+model = genai.GenerativeModel(model_name="gemini-1.0-pro",
+                              generation_config=generation_config,
+                              safety_settings=safety_settings)
+
+modelv = genai.GenerativeModel(model_name="gemini-pro-vision", generation_config=generation_config, safety_settings=safety_settings)
+
 class GeminiLineBot(LineBot):
     def handle_text_message(self, event):
-        user_message = "(zh-tw) {}".format(event.message.text)
-        response = model.start_chat().send_message(user_message)
+        user_id = event.source.user_id
+        print(user_id)
+        user_message = f"使用者:{event.message.text}"
+        update_message_history(user_id, user_message)
+        response = model.start_chat(history=history).send_message(get_formatted_message_history(user_id))
         reply_text = response.text
+        update_message_history(user_id, reply_text)
 
         self.line_bot_api.reply_message(
             event.reply_token,
@@ -50,7 +64,20 @@ class GeminiLineBot(LineBot):
             TextSendMessage(text=reply_text),
         )
 
+def update_message_history(channel_id, text): 
+    if channel_id in log:  
+        log[channel_id].append(text)  
+        if len(log[channel_id]) > data["memory_max"]:
+            log[channel_id].pop(0) 
+    else:
+        log[channel_id] = [text] 
+
+def get_formatted_message_history(channel_id):
+    if channel_id in log: 
+        return '\n\n'.join(log[channel_id]) 
+
 if __name__ == "__main__":
     bot = GeminiLineBot(ACCESS_TOKEN, CHANNEL_SECRET)
     app = bot.create_app()
     app.run(host='0.0.0.0',port=8888)
+
