@@ -14,8 +14,8 @@ data = json.load(open("config.json", encoding="utf-8"))
 log = {} 
 
 GEMINI_API_KEY = data["GEMINI_API_KEY"]
-ACCESS_TOKEN = data["ACCESS_TOKEN"]
-CHANNEL_SECRET = data["CHANNEL_SECRET"]
+ACCESS_TOKEN = data["LINE_ACCESS_TOKEN"]
+CHANNEL_SECRET = data["LINE_CHANNEL_SECRET"]
 NGROK_AUTHTOKEN = data["NGROK_AUTHTOKEN"]
 
 # ngrok
